@@ -1010,7 +1010,7 @@ Overall, compared with the results from Step 5 we got a higher number of SNPs as
 **The approach used in STEP 5 was more strict, removing a significant number of SNPs from the consideration.**
 
 ##Appendix
-The Rmarkdown code for this project may be found here:
+The Rmarkdown code for this project may be found here: https://github.com/EGjika/Genome-wide-association-mapping-/blob/main/Genome%20wide%20association%20mapping%20in%20R.Rmd
 
 
 
