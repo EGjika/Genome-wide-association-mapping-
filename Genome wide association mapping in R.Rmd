@@ -1,0 +1,1021 @@
+---
+title: "STAT5900F"
+author: "Eralda Gjika Student ID:101248793"
+date: "Due 17 November 2022"
+output:
+  pdf_document: default
+  html_notebook: default
+subtitle: Assigment 2
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+
+# Introduction
+
+We will be using the dataset from the publication below: Zhao, K., Tung, C. W., Eizenga, G. C., Wright, M. H., Ali, M. L., Price, A. H., ... & McCouch, S. R.
+(2011).
+Genome-wide association mapping reveals a rich genetic architecture of complex traits in Oryza sativa.
+Nature communications, 2(1), 1-10.
+
+
+# Question 1
+
+Read the genotype data contained in the file "Genotype.csv".
+The data is coded using an additive model (i.e., Xi = 0, 1, 2).
+Remove any SNP that has more than 20% missing values.
+For the SNPs with less than 20% missing values, replace the missing values with the genotype of the heterozygous individual (i.e., replace missing data with 1).
+
+## Solution 1
+At these part we are importing and observing the dimensions of our three datasets.
+
+## Importing the Phenodata
+
+```{r Pheno data}
+library(readr) # read csv and text file
+# Import Pheno_data
+Pheno_data <- read.delim("D:/ALDA 2021/CARLETON 2022/STAT5900-Genomic/Assignments STAT5900/Assignment 2 STAt5900F/Pheno_data.txt")
+# [1] 413  38
+```
+
+## Import Chromosome data
+
+```{r Chromosome data, warning=FALSE}
+chromosome <- read_csv("D:/ALDA 2021/CARLETON 2022/STAT5900-Genomic/Assignments STAT5900/Assignment 2 STAt5900F/chromosome.csv")
+dim(chromosome)
+# [1] 36901     4
+```
+
+## Import Genotype data
+
+```{r Genotype data, warning=FALSE}
+Genotype <- read_csv("D:/ALDA 2021/CARLETON 2022/STAT5900-Genomic/Assignments STAT5900/Assignment 2 STAt5900F/Genotype.csv")
+dim(Genotype)
+# [1] 413 36902
+```
+
+## Remove any SNP that has more than 20% missing values.
+
+```{r Libraries used, warning=FALSE, include=FALSE}
+library(dplyr) #perform data manipulation
+library(tidyverse) #perform data manipulation
+```
+
+The function below will delete columns with missing values greater or equal than n% (n should take values like: 0.2 which corresponds to 20%)
+
+```{r delete columns %, warning=FALSE}
+delete.col_na <- function(D, n) {
+  D[-which(sapply(D, function(x) sum(is.na(x)))>=n*nrow(D))]
+}
+
+Genotype_20<-delete.col_na(Genotype,0.2)# after removing columns with 20% missing values or higher
+dim(Genotype_20)
+# [1] 413 34923
+
+Removed=ncol(Genotype)-ncol(Genotype_20)
+Removed # number of SNPs removed 
+
+
+
+```
+
+## Replace the missing values
+
+Replace NAs with the genotype of the heterozygous individual (i.e., replace missing data with 1).
+
+```{r genotype NAs, echo=TRUE, warning=FALSE}
+Genotype_20[is.na(Genotype_20)]=1
+dim(Genotype_20)
+# [1]   413 34923
+```
+
+\newpage
+
+# Question 2
+
+The three phenotype traits "Seed.length", "Seed.width", and "Seed.volume" also consists of missing data.
+You may remove the observations with missing data or use any approach to estimate these missing data.
+
+## Solution 2
+
+First we read the data and select from the dataset our interested variables (Seed.length, Seed.width and Seed.volume).
+
+```{r Seed variables, warning=FALSE}
+# The dataset with the phenotype:
+Pheno_data <- read.delim("D:/ALDA 2021/CARLETON 2022/STAT5900-Genomic/Assignments STAT5900/Assignment 2 STAt5900F/Pheno_data.txt")
+# Select the three variables from this dataset
+Pheno_data3<-Pheno_data %>% select(Seed.length,Seed.width, Seed.volume)
+
+dim(Pheno_data3)
+# [1] 413   3
+head(Pheno_data3,4)
+```
+
+## Remove the observations with missing data from this dataset
+
+Below is created a function which **delete NAs based on a threshold** which is by default zero (it means all rows which have NA's).
+
+```{r delete row function, warning=FALSE}
+delete.row_na <- function(D, n=0) {
+  D[rowSums(is.na(D)) <= n,]
+}
+
+Pheno_data4<-delete.row_na(Pheno_data3)
+dim(Pheno_data4)
+# [1] 377   3
+```
+
+From 413 only 36 observations were removed which are approximately 8.7% of total observations.
+We will continue with this number 377 of observations for the steps below.
+
+```{r index of removed observation}
+id=complete.cases(Pheno_data3) # returns a vector of row index which have NA's values
+index<-which(id==FALSE) # save the index for those rows with NA's values
+# index
+# [1]  10  13  29  32  48  50  69  88  90 102 111 121 123
+# [14] 145 164 166 307 332 333 334 335 336 337 338 339 340
+# [27] 341 342 343 344 345 346 353 354 355 393
+```
+
+Now we should remove also the observations from **Genotype_20** which were removed from Phenotype (index).
+
+```{r genotype reduced set, warning=FALSE}
+Genotype_4<-Genotype_20[-index,]
+Genotype_4<-Genotype_4[,-1] # removing the first column on scanID
+dim(Genotype_4)
+# [1] 377 34922
+```
+
+We should also remove from **chromosome** the same observations removed above (index) get column names from **Genotype_4** and extract from Chromosome data only those remained after transformations.
+
+```{r chromosome reduced set}
+names_chro<-names(Genotype_4)# SNPs names after removing and substitute missing data with 1
+chromosome_1<-data.frame(SNPs_name=names(Genotype[-1]),chromosome) # attaching the SNPs names to chromosome
+
+chromosome_4<-chromosome_1 %>% filter(SNPs_name %in% names_chro)
+dim(chromosome_4)
+# [1] 34922     5
+# At this point the dimensions of our datasets are:
+# Genotype_4    377x34922
+# Pheno_data_4  377x4
+# Chromosome_4  34922 x5
+```
+
+\newpage
+
+# Question 3
+
+Conduct an appropriate single SNP analysis to first screen SNPs that are associated with:
+**(i) "Seed.Length"**, **(ii) "Seed.width"**, and **(iii) "Seed.volume"**.
+
+You may use the **assocRegression()** in the R package GWASTools or just appropriate base R function with loops.
+Use an FDR of 0.001 as the threshold.
+How many SNPs were associated with each of the three phenotype traits?
+
+## Solution 3
+
+## First we create a dataset with all information.
+
+There are two main types of study designs: 
+
+**Case Control Study Design:** The phenotype is a binary outcome.
+
+**Quantitative Study Design:** The phenotype is a continuous outcome.
+
+Our variables: Seed.length, Seed.width and Seed.volume are continuous variables.
+This will be taken into consideration at this step when modeling (type of model linear will be selected and also family gaussian).
+
+```{r genoData, warning=FALSE}
+library(GWASTools)
+###Creating MatrixGenotypeReader class object
+genoData<-MatrixGenotypeReader(genotype=t(Genotype_4),snpID=as.integer(chromosome_4$SNP_id),chromosome=as.integer(chromosome_4$Chromosome),position=as.integer(chromosome_4$Position),scanID=1:377) 
+```
+
+```{r SNPs data}
+snp_info<-SnpAnnotationDataFrame(data=data.frame(snpID=as.integer(chromosome_4$SNP_id),chromosome=as.integer(chromosome_4$Chromosome),position=as.integer(chromosome_4$Position),names=chromosome_4$SNPs_name))
+```
+
+Removing the first column since it is the scanID for SNPs name An additional column names is created that contains the SNP names.
+
+```{r phenodata}
+pheno_data<-ScanAnnotationDataFrame(data.frame(scanID=1:377,Pheno_data4))
+#Phenotype used here is the one after transformations we created before (Pheno_data4).
+
+```
+
+```{r all data}
+#Combining all three datatypes.
+all<-GenotypeData(genoData,scanAnnot=pheno_data,snpAnnot=snp_info)
+```
+
+## FDR and threshold
+
+The FDR is the rate that features called significant are truly null.
+An FDR of 5% means that, among all features called significant, 5% of these are truly null.
+Below a threshold 0.001 for FDR test is used.
+
+## Seed.length FDR
+
+After running the code below we obtain **5509 SNPs** were associated with **Seed.Length** phenotype traits.
+
+```{r Seed.length FDR, warning=FALSE}
+# Seed.Length
+res1 <- assocRegression(all,outcome="Seed.length",model.type="linear")
+head(res1,n=5)
+
+head(res1[,c(1,3,9,10,11,12)],n=5)### Extracting wald's statistics and p-value
+
+p_adj1<-p.adjust(res1[,12], method = "fdr") ###multiple testing correction using fdr
+head(data.frame(res1[,c(1,9,10,11,12)],p_adj1<=0.001),n=5)
+P_adj1<-data.frame(res1[,c(1,9,10,11,12)],p_adj1<=0.001) # control if p_adj<=0.001
+sum(P_adj1$p_adj1....0.001==TRUE)# counting how many observations SPNs are significant using threshold=0.001 for FDR
+
+# [1] 5509 SNPs were associated with Seed.Length phenotype traits
+
+i_1<-which(P_adj1$p_adj1....0.001==TRUE)# saves the rows of SNPs which are associated with Seed.length
+#we will use this index to create a set for question 5, and split it to training and testing. The same subset will be used for question 6
+new_data<-data.frame(Pheno_data4,Genotype_4)
+set_1<-new_data[,i_1]
+dim(set_1)
+# Use this set_1 at question 5 for modelling Seed.length and split it in train and test
+```
+
+## Seed.width FDR
+
+After running the code below we obtain **25299 SNPs** were associated with **Seed.width** phenotype traits.
+
+```{r Seed.width FDR, warning=FALSE}
+# Seed.width
+res2 <- assocRegression(all,outcome="Seed.width",model.type="linear")
+head(res2,n=10)
+
+head(res2[,c(1,3,9,10,11,12)],n=3)# Extracting wald's statistics and p-value
+
+p_adj2<-p.adjust(res2[,12], method = "fdr") #multiple testing correction using fdr
+head(data.frame(res2[,c(1,9,10,11,12)],p_adj2),n=3)
+
+P_adj2<-data.frame(res2[,c(1,9,10,11,12)],p_adj2<=0.001) # control if p_adj<=0.001
+sum(P_adj2$p_adj2....0.001==TRUE)# counting how many observations SPNs are significant using threshold=0.001 for FDR
+# [1] 25299 SNPs were associated with Seed.width phenotype traits
+
+i_2<-which(P_adj2$p_adj2....0.001==TRUE)# saves the rows of SNPs which are associated with Seed.width
+#we will use this index to create a set for question 5, and split it to training and testing. Same for question 6
+new_data<-data.frame(Pheno_data4,Genotype_4)
+
+set_2<-new_data[,i_2]
+dim(set_2)
+# Use this set_2 at question 5 for modelling Seed.width and split it in train and test
+```
+
+## Seed.volume FDR
+
+After running the code below we obtain **26088 SNPs** were associated with **Seed.volume** phenotype traits.
+
+```{r Seed.volume FDR, warning=FALSE}
+# Seed.volume
+res3 <- assocRegression(all,outcome="Seed.volume",model.type="linear")
+head(res3,n=10)
+
+head(res3[,c(1,3,9,10,11,12)],n=3)### Extracting wald's statistics and p-value
+
+p_adj3<-p.adjust(res3[,12], method = "fdr") ###multiple testing correction using fdr
+head(data.frame(res3[,c(1,9,10,11,12)],p_adj3),n=3)
+
+P_adj3<-data.frame(res3[,c(1,9,10,11,12)],p_adj3<=0.001) # control if p_adj<=0.001
+sum(P_adj3$p_adj3....0.001==TRUE)# counting how many observations SPNs are significant using threshold=0.001 for FDR
+# [1] 26088 SNPs were associated with Seed.volume phenotype traits
+
+i_3<-which(P_adj3$p_adj3....0.001==TRUE)# saves the rows of SNPs which are associated with Seed.volume
+#we will use this index to create a set for question 5, and split it to training and testing. Same for question 6
+new_data<-data.frame(Pheno_data4,Genotype_4)
+
+set_3<-new_data[,i_3]
+dim(set_3)
+# Use this set_3 at question 5 for modelling Seed.volume and split it in train and test
+```
+
+Reference:
+
+<https://cran.r-project.org/web/packages/glmnet/vignettes/glmnetFamily.pdf>; <https://glmnet.stanford.edu/articles/glmnet.html>
+
+\newpage
+
+# Question 4
+
+Create a Manhattan plot for all three phenotypes separately.
+##Solution 4
+
+A Manhattan plot is a type of plot, usually used to display data with a large number of data-points, many of non-zero amplitude, and with a distribution of higher-magnitude values.
+The plot is commonly used in genome-wide association studies (GWAS) to display significant SNPs.
+Below are the Manhattan plot for each of the three variables: seed.length, seed.width and seed.volume with respect to the transformed dataset (after removing 20% of NAs and rows with missing values as well).
+For each case two significance levels are used for comparison purposes.
+In both cases the differences are smaller.
+
+## Manhattan plot Seed.Length
+
+### Code for the dataset obtained at Step 3.
+
+```{r Manhattan plot Seed.length}
+# Manhattan plot 
+
+# Seed.Length
+pvals1<-p_adj1
+chromosome <- chromosome_4$Chromosome # length 34922
+manhattanPlot(pvals1, chromosome, signif=0.001,main="Seed.length, significance=0.1e-2")
+log10(0.001)
+```
+
+## Manhattan plot Seed.width
+
+```{r Manhattan plot Seed.width}
+# Manhattan plot
+# Seed.width
+pvals2<-p_adj2 
+chromosome <- chromosome_4$Chromosome # length 34922
+manhattanPlot(pvals2, chromosome, signif=0.001,main="Seed.width,significance=0.1e-2")
+log10(0.001)
+
+```
+
+## Manhattan plot Seed.volume
+
+```{r Manhattan plot Seed.volume}
+# Manhattan plot
+# Seed.Length
+pvals3<-p_adj3 
+chromosome <- chromosome_4$Chromosome # length 34922
+manhattanPlot(pvals3, chromosome, signif=0.001,main="Seed.volume,significance=0.1e-2")
+log10(0.001)
+```
+
+\newpage
+
+# Question 5
+
+Split the data into training and test set such that about 80% of your data is in the training set.
+Using the training set, build a multivariate model using LASSO or SPLS for each of the three traits separately (using univariate Y as the response).
+Make sure you choose the tuning parameter appropriately.
+For each of the trait, provide a summary of the number of SNPs with non-zero coefficients, and the performance on the training and test set.
+You may use root mean square error or the square of the correlation of the predicted and observed value (i.e. R2 ) as a measure for your model performance.
+
+## Solution 5
+
+## Training and Testing data
+
+Create a new dataset including all information from **Genotype** and **pheno data**.
+This will be our data from which we will create a **train** and **test** dataset.
+The training set will be obtained from the subset created at question 3 for each traits (Seed.length, Seed.width and Seed.volume).
+
+```{r train and test 1}
+# set_1 is our subset of SNPs for seed.length obtained after question 3 analysis
+# create a train and test dataset
+sample_size <- floor(0.8 * nrow(set_1))
+sample_size
+## set the seed to make your partition reproducible
+set.seed(512)
+train_ind<- sample(seq_len(nrow(set_1)), size = sample_size)
+
+# now our train and testing data are
+train_1 <- set_1[train_ind, ]
+test_1 <- set_1[-train_ind, ]
+
+dim(train_1)
+dim(test_1)
+```
+
+The graphical results obtained below show: Each curve which corresponds to a variable.
+It shows the path of its coefficient against the L1-norm of the whole coefficient vector as lambda varies.
+The axis above indicates the number of nonzero coefficients at the current lambda, which is the effective degrees of freedom (df) for the lasso.
+
+## Model 1- Seed.Width LASSO model evaluation
+
+Trying Poisson and gaussian gives some visible differences on the nonzero coefficients.
+Below we will continue with **gaussian** family considering our data are continuous data.
+For the **Seed.length** we observe from the graphical output of the model that the number of nonzero coefficients at the current log(lambda) approximately -0.5 is one.
+
+```{r Seed.length glmnet}
+library(glmnet)
+mod1<-glmnet(y=train_1[,1],x=as.matrix(train_1[,-c(1,2,3)]),family="poisson")
+plot(mod1,xvar="lambda")
+
+mod1<-glmnet(y=train_1[,1],x=as.matrix(train_1[,-c(1,2,3)]),family="gaussian")
+plot(mod1,xvar="lambda")
+
+```
+
+We may observe that most of the variables follow typical regularization paths and shrink to zero eventually.
+Trying cv.glmnet() function below:
+
+```{r model 1 summary}
+set.seed(12345)
+cv_mod1<-cv.glmnet(x=as.matrix(train_1[,-c(1,2,3)]),y=train_1[,1],family="gaussian")
+#plot(cv_mod1)
+cv_mod1$lambda.min ## Lambda that gives minimum prediction error
+mod1<-glmnet(y=train_1[,1],x=as.matrix(train_1[,-c(1,2,3)]),lambda=cv_mod1$lambda.min,family="poisson")
+head(coef(mod1),10)
+```
+
+The table output of the model gives information about: nonzero coefficients (Df), the percent (of null) deviance explained (%dev) and the value of (Lambda)
+
+```{r model 1 fit}
+mod_1_fit<-data.frame(DF=cv_mod1$glmnet.fit$df, Dev_perc=cv_mod1$glmnet.fit$dev.ratio, Lambda=cv_mod1$glmnet.fit$lambda)
+head(mod_1_fit)
+# cv_mod1$glmnet.fit #for all info just use the direct call
+```
+
+We may obtain the plot of the cross-validation curve (red dotted line) along with upper and lower standard deviation curves along the lambda sequence (error bars) as shown below.
+Graphs below are the same but in respect to **MAE-Mean Absolute Error** and **MSE-Mean Squared error**.
+Depending on the error used for the Seed.length the number of coefficients nonzero **varies from 2 to 11 based on MSE, and from 11 to 23 based on MAE.** based on the visualization but also observe the cross-validation results below for an accurate result in numbers.
+
+```{r model 1 plot mse}
+par(mfrow=c(1,2))
+plot(cv_mod1)
+title("Gaussian Family", line = 1.5)
+#
+set.seed(1011)
+mod1.1 = cv.glmnet(x=as.matrix(train_1[,-c(1,2,3)]),y=train_1[,1], type.measure = "mae")
+plot(mod1.1)
+title("Gaussian Family", line = 2)
+```
+
+*lambda.min* is the value of lambda that gives minimum mean cross-validated error.
+We can use the following code to get the value of *lambda.min* and the model coefficients at that value of lambda:
+
+```{r Model 1 min lambda}
+cv_mod1$lambda.min
+log(cv_mod1$lambda.min)# observe the first bar to the left this is  the value of log() for the minimum lambda.
+```
+
+While *lambda.1se* is the value of lambda that gives the most regularized model such that the cross-validated error is within one standard error of the minimum.
+
+```{r model 1 prediction}
+Pred_1<-predict(cv_mod1, newx = as.matrix(test_1[1:20,-c(1,2,3)]), type="response",s =c(cv_mod1$lambda.min,cv_mod1$lambda.1se))
+Pred_1
+# To compare the predictions graphically we may also plot them
+plot(Pred_1[,1],col="red",type="l",ylab="predictions",ylim=c(0,2))
+lines(Pred_1[,2],col="blue")
+lines(test_1[1:20,1],col="green")
+legend(10,1.5,c("lambda.1se","lambda.min","real"),fill=c("blue","red","green"),box.col="white")
+```
+
+A summary may be also obtained if we decide the number of cross-validation mean squared error criterion (mse) or mean absolute error (mae).
+
+```{r model 1 cross-validation plot}
+cv.glmnet(x=as.matrix(train_1[,-c(1,2,3)]),y=train_1[,1], type.measure = "mse",nfolds = 20)
+```
+
+## Model performance functions RMSE and RSquare
+
+```{r RMSE Rsquare functions}
+# Root Mean Squared Error (RMSE)
+RMSE = function(x,y) {
+  sqrt(mean((x-y)^2))
+}
+# R SQUARED error metric -- Coefficient of Determination
+R_square = function(y_actual,y_predict){
+  cor(y_actual,y_predict)^2
+}
+```
+
+## Model 1 performance functions RMSE and RSquare
+
+```{r model 1 accuracy}
+# Training Accuracy
+Train_pred<-predict(cv_mod1, newx = as.matrix(train_1[1:301,-c(1,2,3)]), type="response",s =cv_mod1$lambda.min) # 301 values fitted from the model
+
+RMSE(train_1[1:301,1],Train_pred)
+R_square(train_1[1:301,1],Train_pred)
+
+# Testing Accuracy
+Pred_1_all<-predict(cv_mod1, newx = as.matrix(test_1[,-c(1,2,3)]), type="response",s =cv_mod1$lambda.min)
+RMSE(test_1[,1],Pred_1_all)
+R_square(test_1[,1],Pred_1_all)
+
+# A list of outputs for training and testing
+list(RMSE=c(Train=RMSE(train_1[,1],Train_pred),Test=RMSE(test_1[,1],Pred_1_all)),R_square=c(Train=R_square(train_1[,1],Train_pred),Test=R_square(test_1[,1],Pred_1_all)))
+```
+
+Provide a summary of the number of SNPs with non-zero coefficients.
+1 out the 5509 SNPs had non-zero coefficients and magnitude and sign of the coefficient will provide a measure of its effect and direction to **Seed.length**.
+
+```{r model 1 nr of SNPs }
+length(which(as.matrix(coef(cv_mod1))!=0))-1 ##Subtracting 1 for intercept
+```
+
+## Model 2- Seed.Width LASSO model evaluation
+
+Again here our Seed.Width is a continuous variable so we use "gaussian".
+
+```{r}
+# set_2 is our subset of SNPs for seed.width obtained after question 3 analysis
+# create a train and test dataset
+sample_size <- floor(0.8 * nrow(set_2))
+sample_size
+## set the seed to make your partition reproducible
+set.seed(1234)
+train_ind<- sample(seq_len(nrow(set_2)), size = sample_size)
+
+# now our train and testing data are
+train_2 <- set_2[train_ind, ]
+test_2 <- set_2[-train_ind, ]
+
+dim(train_2)
+dim(test_2)
+```
+
+```{r Seed.width glmnet}
+library(glmnet)
+
+
+mod2<-glmnet(y=train_2[,2],x=as.matrix(train_2[,-c(1,2,3)]),family="gaussian")
+plot(mod2,xvar="lambda")
+
+# we may also organize the limits for y axis
+mod2<-glmnet(y=train_2[,2],x=as.matrix(train_2[,-c(1,2,3)]),family="gaussian",lower.limits = -0.3, upper.limits = 0.3)
+plot(mod2,xvar="lambda")
+
+```
+
+Same for model 2, we may observe that most of the variables follow typical regularization paths and shrink to zero eventually.
+We may obtain the plot of the cross-validation curve (red dotted line) along with upper and lower standard deviation curves along the lambda sequence (error bars) as shown below.
+The number of **SNPs with coefficients nonzero vary from 43 up to 115** from the visualization but also observe the cross-validation results below for an accurate result in numbers.
+
+```{r model 2 plot mae and mse}
+par(mfrow=c(1,2))
+set.seed(1011)
+cv_mod2 = cv.glmnet(x=as.matrix(train_2[,-c(1,2,3)]),y=train_2[,2], type.measure = "mae")
+plot(cv_mod2)
+title("Gaussian Family", line = 2)
+
+mod2.1 = cv.glmnet(x=as.matrix(train_2[,-c(1,2,3)]),y=train_2[,2], type.measure = "mse")
+plot(mod2.1)
+title("Gaussian Family", line = 1.7)
+```
+
+The table output of the model gives information about: nonzero coefficients (Df), the percent (of null) deviance explained (%dev) and the value of lambda (Lambda)
+
+```{r model 2 fit}
+mod_2_fit<-data.frame(DF=cv_mod2$glmnet.fit$df, Dev_perc=cv_mod2$glmnet.fit$dev.ratio, Lambda=cv_mod2$glmnet.fit$lambda)
+head(mod_2_fit)
+# cv_mod2$glmnet.fit #for all info just use the direct call
+```
+
+*lambda.min* is the value of lambda that gives minimum mean cross-validated error.
+We can use the following code to get the value of *lambda.min* and the model coefficients at that value of lambda:
+
+```{r model 2 min lambda}
+cv_mod2$lambda.min
+log(cv_mod2$lambda.min)# observe the first bar to the left this is  the value of log() for the minimum lambda.
+```
+
+While *lambda.1se* is the value of lambda that gives the most regularized model such that the cross-validated error is within one standard error of the minimum.
+
+```{r model 2 prediction}
+Pred_2<-predict(cv_mod2, newx = as.matrix(test_2[1:20,-c(1,2,3)]), type="response",s =c(cv_mod2$lambda.min,cv_mod2$lambda.1se))
+Pred_2
+# To compare the predictions graphically we may also plot them
+plot(Pred_2[,1],col="red",type="l",ylab="predictions",ylim=c(2.2,3.7))
+lines(Pred_2[,2],col="blue")
+lines(test_2[1:20,2],col="green")
+legend(8,2.9,c("lambda.1se","lambda.min","real"),fill=c("blue","red","green"),box.col="white")
+```
+
+A summary may be also obtained if we decide the number of cross-validation mean squared error criterion (mse) or mean absolute error (mae).
+
+```{r model 2 cross-validation plot}
+cv.glmnet(x=as.matrix(train_2[,-c(1,2,3)]),y=train_2[,2], type.measure = "mse",nfolds = 20)
+```
+
+## Model 2-Seed.Width performance:
+
+```{r model 2 accuracy}
+# Training Accuracy
+Train_pred<-predict(cv_mod2, newx = as.matrix(train_2[1:301,-c(1,2,3)]), type="response",s =cv_mod2$lambda.min)
+
+RMSE(train_2[,2],Train_pred)
+R_square(train_2[,2],Train_pred)
+
+# Testing Accuracy
+Pred_2_all<-predict(cv_mod2, newx = as.matrix(test_2[1:76,-c(1,2,3)]), type="response",s =cv_mod2$lambda.min)
+RMSE(test_2[,2],Pred_2_all)
+R_square(test_2[,2],Pred_2_all)
+
+# A list of outputs for training and tetsing
+list(RMSE=c(Train=RMSE(train_2[,2],Train_pred),Test=RMSE(test_2[,2],Pred_2_all)),R_square=c(Train=R_square(train_2[,2],Train_pred),Test=R_square(test_2[,2],Pred_2_all)))
+```
+
+Provide a summary of the number of SNPs with non-zero coefficients.
+43 out the 25296 SNPs had non-zero coefficients and magnitude and sign of the coefficient will provide a measure of its effect and direction to Seed.length.
+
+```{r SNPs for seed.width}
+length(which(as.matrix(coef(cv_mod2))!=0))-1 ##Subtracting 1 for intercept
+```
+
+## Model 3- Seed.Volume LASSO model evaluation
+
+Trying Poisson and gaussian does not give a clear difference.
+So, we continue with gaussian.
+
+```{r}
+# set_3 is our subset of SNPs for seed.volume obtained after question 3 analysis
+# create a train and test dataset
+sample_size <- floor(0.8 * nrow(set_3))
+sample_size
+## set the seed to make your partition reproducible
+set.seed(1234)
+train_ind<- sample(seq_len(nrow(set_3)), size = sample_size)
+
+# now our train and testing data are
+train_3 <- set_3[train_ind, ]
+test_3 <- set_3[-train_ind, ]
+
+dim(train_3)
+dim(test_3)
+```
+
+```{r Seed.volume glmnet}
+library(glmnet)
+
+mod3<-glmnet(y=train_3[,3],x=as.matrix(train_3[,-c(1,2,3)]),family="gaussian")
+plot(mod3,xvar="lambda")
+
+# we may also organize the limits for y axis
+mod3<-glmnet(y=train_3[,3],x=as.matrix(train_3[,-c(1,2,3)]),family="gaussian",lower.limits = -0.3, upper.limits = 0.3)
+plot(mod3,xvar="lambda")
+
+```
+
+Same for model 3, we may observe that most of the variables follow typical regularization paths and shrink to zero eventually.
+We may obtain the plot of the cross-validation curve (red dotted line) along with upper and lower standard deviation curves along the lambda sequence (error bars) as shown below.
+The number of **SNPs with coefficients nonzero vary from 79 up to 142** from the visualization but also observe the cross-validation results below for an accurate result in numbers.
+
+```{r model 3 plot mae}
+par(mfrow=c(1,2))
+set.seed(1011)
+cv_mod3 = cv.glmnet(x=as.matrix(train_3[,-c(1,2,3)]),y=train_3[,3], type.measure = "mae")
+plot(cv_mod3)
+title("Gaussian Family", line = 2)
+
+mod3.1 = cv.glmnet(x=as.matrix(train_3[,-c(1,2,3)]),y=train_3[,3], type.measure = "mse")
+plot(mod3.1)
+title("Gaussian Family", line = 1.7)
+```
+
+The table output of the model gives information about: nonzero coefficients (Df), the percent (of null) deviance explained (%dev) and the value of (Lambda)
+
+```{r model 3 fit}
+mod_3_fit<-data.frame(DF=cv_mod3$glmnet.fit$df, Dev_perc=cv_mod3$glmnet.fit$dev.ratio, Lambda=cv_mod3$glmnet.fit$lambda)
+head(mod_3_fit)
+# cv_mod3$glmnet.fit #for all info just use the direct call
+```
+
+*lambda.min* is the value of lambda that gives minimum mean cross-validated error.
+We can use the following code to get the value of *lambda.min* and the model coefficients at that value of lambda:
+
+```{r model 3 - min lambda}
+cv_mod3$lambda.min
+log(cv_mod3$lambda.min)# observe the first bar to the left this is  the value of log() for the minimum lambda.
+```
+
+While *lambda.1se* is the value of lambda that gives the most regularized model such that the cross-validated error is within one standard error of the minimum.
+
+```{r model 3 prediction}
+Pred_3<-predict(cv_mod3, newx = as.matrix(test_3[1:10,-c(1,2,3)]), type="response",s =c(cv_mod2$lambda.min,cv_mod2$lambda.1se))
+Pred_3
+# To compare the predictions graphically we may also plot them
+plot(Pred_3[,1],col="red",type="l",ylab="predictions",ylim=c(1.8,3.2))
+lines(Pred_3[,2],col="blue")
+lines(test_3[1:10,3],col="green")
+legend(2,3.2,c("lambda.1se","lambda.min","real"),fill=c("blue","red","green"),box.col="white")
+```
+
+A summary may be also obtained if we decide the number of cross-validation mean squared error criterion (mse) or mean absolute error (mae).
+
+```{r model 3 cross-validation plot}
+cv.glmnet(x=as.matrix(train_3[,-c(1,2,3)]),y=train_3[,3], type.measure = "mse",nfolds = 20)
+```
+
+## Model 3-Seed.Width performance:
+
+```{r Model 3 accuracy}
+# Training Accuracy
+Train_pred<-predict(cv_mod3, newx = as.matrix(train_3[1:301,-c(1,2,3)]), type="response",s =cv_mod3$lambda.min)
+
+RMSE(train_3[,3],Train_pred)
+R_square(train_3[,3],Train_pred)
+
+# Testing Accuracy
+Pred_3_all<-predict(cv_mod3, newx = as.matrix(test_3[1:76,-c(1,2,3)]), type="response",s =cv_mod3$lambda.min)
+RMSE(test_3[,3],Pred_3_all)
+R_square(test_3[,3],Pred_2_all)
+
+# A list of outputs for training and tetsing
+list(RMSE=c(Train=RMSE(train_3[,3],Train_pred),Test=RMSE(test_3[,3],Pred_3_all)),R_square=c(Train=R_square(train_3[,3],Train_pred),Test=R_square(test_3[,3],Pred_3_all)))
+```
+
+Provide a summary of the number of SNPs with non-zero coefficients.
+**78 out the 34922 SNPs had non-zero coefficients** and magnitude and sign of the coefficient will provide a measure of its effect and direction to Seed.volume.
+
+```{r model 3 SNPs}
+length(which(as.matrix(coef(cv_mod3))!=0))-1 ##Subtracting 1 for intercept
+```
+
+**Final Comments question 5:** What it is observed (which is already known) is the fact that for training set the errors are smaller than for testing set.
+Also the R-squared is higher for training and less for testing.
+We also observe differences in the number of SNPs with nonzero coefficients if MAE or MSE is used.
+But, numbers are in most cases approximate.
+
+As a result of the above analysis: **For seed.length:1 out the 5509 SNPs had non-zero coefficients** **For Seed.width: 43 out the 26088 SNPs had non-zero coefficients** **For Seed.volume: 78 out the 34922 SNPs had non-zero coefficients**
+
+\newpage
+
+# Question 6
+
+You may use the complete data for this part.
+Conduct M-SPLS analysis using all three covariates together (multivariate response) and create bootstrap confidence intervals to identify SNPs that are: • associated with all three traits.
+• associated with each trait individually.
+What proportions of SNPs identified here are in agreement with your analysis in Step 5
+
+## Solution 6
+
+Because of the 0 values in SNPs the cv.spls will not work (Output: Some of the columns of the predictor matrix have zero variance.).
+So, we need to re-code our values using 1,2,3 instead of 0,1,2.
+After this submission again for the whole dataset the message was again the same so I used only a sample of 1000 SNPs from the data.(34922 SNPs)
+
+
+
+## SPLS for all three traits : Seed.length, Seed.width and Seed.volume
+
+First let's create a dataset with the SNPs which intersect in all three sets for Seed.length, seed.width and seed.
+```{r}
+
+intersect_1<-intersect(colnames(data.frame(set_3,set_2)),colnames(set_1))
+length(intersect_1)
+
+Genotype_all<-Genotype_4[,intersect_1]# call only those SNPs extracted above
+dim(Genotype_all)
+# [1] 4338 SNPS
+reduced_data<-data.frame(Pheno_data4, Genotype_all)
+reduced_data[1:5,1:5]
+dim(reduced_data)
+```
+
+From the results below: SPLS chose **2552 variables among 4338 variables** as important for all three traits.
+
+```{r}
+library(spls)
+set.seed(123)
+
+x.seed<-reduced_data[,-c(1,2,3)]# all SNPs associated with all three traits
+y.seed<-reduced_data[,c(1,2,3)]# three traits
+cv<-cv.spls( x.seed, y.seed, eta = seq(0.1,0.9,0.1), K = c(1:5))
+# Optimal parameters: eta = 0.5, K = 5
+cv$eta.opt # optimal value of eta among 0.1 to 0.9 by step 0.1
+cv$K.opt # optimal K
+
+model_spls<-spls(x.seed,y.seed, eta = cv$eta.opt, K = cv$K.opt)
+coef_spls<-coef(model_spls)
+head(rownames(coef_spls)[which(coef_spls!=0)])
+coef_spls<-coef(model_spls)
+head(coef_spls[which(coef_spls!=0)])
+head(rownames(coef_spls)[which(coef_spls!=0)])
+
+```
+```{r}
+#model_spls
+# Sparse Partial Least Squares for multivariate responses
+# ----
+# Parameters: eta = 0.5, K = 5, kappa = 0.5
+# PLS algorithm:
+# pls2 for variable selection, simpls for model fitting
+# 
+# SPLS chose 2552 variables among 4338 variables
+# 
+# Selected variables: 
+# SNP51	SNP53	SNP54	SNP205	SNP482	
+# SNP560	SNP720	SNP723	SNP725	SNP782	
+# SNP828	SNP830	SNP832	SNP844	SNP1549	
+# SNP1885	SNP1943	SNP1977	SNP1979	SNP2021	
+```
+
+
+```{r}
+ci.f<-ci.spls(model_spls)# create the bootstrap confidence intervals 
+```
+
+```{r}
+head(ci.f$cibeta$Seed.length)# bootstrap intervals for Seed.length
+head(ci.f$cibeta$Seed.width) #bootstrap intervals for Seed.width
+head(ci.f$cibeta$Seed.volume) #bootstrap intervals for Seed.volume
+
+```
+
+```{r}
+CI_corrected<-correct.spls(ci.f)# visualization of original and corrected coefficients to zero
+
+head(CI_corrected[model_spls$A,])# table of corrected coefficients for SNPs and traits 
+```
+
+## SPLS for Seed.length
+
+From the results below: SPLS chose **3380 variables among 5509 variables** as important for Seed.length
+
+```{r}
+set.seed(123)
+x.seed<-set_1 # seed.length considered
+y.seed<-Pheno_data4# all three traits considered
+cv<-cv.spls( x.seed, y.seed[,1], eta = seq(0.1,0.9,0.1), K = c(1:5))
+# Optimal parameters: eta = 0.5, K = 5
+cv$eta.opt # optimal value of eta among 0.1 to 0.9 by step 0.1
+cv$K.opt # optimal K
+
+model_spls<-spls(x.seed,y.seed[,1], eta = cv$eta.opt, K = cv$K.opt)
+
+coef_spls<-coef(model_spls)
+head(rownames(coef_spls)[which(coef_spls!=0)])
+coef_spls<-coef(model_spls)
+head(coef_spls[which(coef_spls!=0)])
+head(rownames(coef_spls)[which(coef_spls!=0)])
+
+```
+```{r}
+# model_spls # run this to obtain the follow output
+
+# 
+# Sparse Partial Least Squares for an univariate response
+# ----
+# Parameters: eta = 0.5, K = 5
+# PLS algorithm:
+# pls2 for variable selection, simpls for model fitting
+# 
+# SPLS chose 3380 variables among 5509 variables
+# 
+# Selected variables: 
+# SNP50	SNP53	SNP55	SNP175	SNP198	
+# SNP200	SNP225	SNP227	SNP228	SNP234	
+# SNP235	SNP240	SNP306	SNP313	SNP330	
+# SNP344	SNP371	SNP379	SNP388	SNP392	
+# SNP393	SNP397	SNP402	SNP404	SNP420	
+# SNP431	SNP433	SNP437	SNP439	SNP449	
+# SNP452	SNP454	SNP482	SNP488	SNP523	
+```
+
+
+```{r}
+ci.f<-ci.spls(model_spls)
+head(ci.f$cibeta$Seed.length)# bootstrap intervals for Seed.length
+```
+
+```{r}
+CI_corrected<-correct.spls(ci.f)# visualization original and corrected coefficients to zero
+
+head(CI_corrected[model_spls$A,])# table of corrected coefficients for SNPs and seed.length
+```
+
+## SPLS for Seed.width
+
+From the results below: SPLS chose **1651 variables among 2361 variables** as important for Seed.width
+First we have taken into consideration those SNPs which adj_pvalue<1e-20 (since for the whole set from Step 3 the code has given error output). From the dataset the reduced set is compound of 2364 SNPs.
+```{r}
+set.seed(123)
+P_adj22<-data.frame(res2[,c(1,9,10,11,12)],p_adj2<=1e-20)
+sum(P_adj22$p_adj2....1e.20==TRUE)
+i_22<-which(P_adj22$p_adj2....1e.20==TRUE)# saves the rows of SNPs which are associated with Seed.width and condition of adjusted p-value 
+set_22<-new_data[,i_22]
+dim(set_22)
+# [1] 2364 SNPs
+```
+
+```{r}
+x.seed<-set_22[,-c(1,2,3)] # seed.width considered 2364 SNPs
+y.seed<-Pheno_data4# all three traits considered
+cv<-cv.spls( x.seed, y.seed[,2], eta = seq(0.1,0.9,0.1), K = c(1:5))
+
+cv$eta.opt # optimal value of eta among 0.1 to 0.9 by step 0.1
+cv$K.opt # optimal K
+
+model_spls<-spls(x.seed,y.seed[,2], eta = cv$eta.opt, K = cv$K.opt)
+coef_spls<-coef(model_spls)
+head(rownames(coef_spls)[which(coef_spls!=0)])
+coef_spls<-coef(model_spls)
+head(coef_spls[which(coef_spls!=0)])
+head(rownames(coef_spls)[which(coef_spls!=0)])
+
+```
+
+```{r}
+# model_spls
+# Sparse Partial Least Squares for an univariate response
+# ----
+# Parameters: eta = 0.5, K = 5
+# PLS algorithm:
+# pls2 for variable selection, simpls for model fitting
+# 
+# SPLS chose 1651 variables among 2361 variables
+# 
+# Selected variables: 
+# SNP582	SNP585	SNP592	SNP639	SNP954	
+# SNP1031	SNP1072	SNP1093	SNP1095	SNP1098	
+# SNP1106	SNP1107	SNP1136	SNP1160	SNP1167	
+# SNP1934	SNP1969	SNP2061	SNP2082	SNP2085	
+```
+
+
+```{r}
+ci.f<-ci.spls(model_spls)
+#head(ci.f$cibeta)# bootstrap intervals for Seed.width
+```
+
+```{r}
+CI_corrected<-correct.spls(ci.f)# visualization original and corrected coefficients to zero
+
+head(CI_corrected[model_spls$A,])# table of corrected coefficients for SNPs and seed.width
+```
+
+## SPLS for Seed.volume
+
+From the results below: SPLS chose **3001 variables among 3865 variables** as important for Seed.width
+Same for seed.volume we created a reduced dataset taking into consideration those SNPs which adj_pvalue was less than 1e-20.
+
+```{r}
+P_adj33<-data.frame(res3[,c(1,9,10,11,12)],p_adj3<=1e-20)
+sum(P_adj33$p_adj3....1e.20==TRUE)
+i_33<-which(P_adj33$p_adj3....1e.20==TRUE)# saves the rows of SNPs which are associated with Seed.volume
+set_33<-new_data[,i_33]
+dim(set_33)
+```
+
+```{r}
+set.seed(123)
+x.seed<-set_33[,-c(1,2,3)] # seed.width considered 2364 SNPs
+y.seed<-Pheno_data4# all three traits considered
+cv<-cv.spls( x.seed, y.seed[,3], eta = seq(0.1,0.9,0.1), K = c(1:5))
+cv$eta.opt # optimal value of eta among 0.1 to 0.9 by step 0.1
+cv$K.opt # optimal K
+model_spls<-spls(x.seed,y.seed[,3], eta = cv$eta.opt, K = cv$K.opt)
+coef_spls<-coef(model_spls)
+head(rownames(coef_spls)[which(coef_spls!=0)])
+coef_spls<-coef(model_spls)
+head(coef_spls[which(coef_spls!=0)])
+head(rownames(coef_spls)[which(coef_spls!=0)])
+
+```
+
+```{r}
+#model_spls
+# Sparse Partial Least Squares for an univariate response
+# ----
+# Parameters: eta = 0.5, K = 5
+# PLS algorithm:
+# pls2 for variable selection, simpls for model fitting
+# 
+# SPLS chose 3001 variables among 3865 variables
+# 
+# Selected variables: 
+# SNP618	SNP624	SNP715	SNP1701	SNP1702	
+# SNP1705	SNP1718	SNP1719	SNP1720	SNP1721	
+# SNP1739	SNP1742	SNP1743	SNP1761	SNP1773	
+# SNP1777	SNP1781	SNP1785	SNP1786	SNP1789	
+```
+
+```{r}
+ci.f<-ci.spls(model_spls)
+#head(ci.f$cibeta)# bootstrap intervals for Seed.volume
+#             2.5%         97.5%
+# SNP1    -8.648783e-04  2.162893e-03
+# SNP2    -8.504813e-04  2.255298e-03
+# SNP3    -2.062148e-03  1.015296e-03
+# SNP5    -6.396920e-04  2.405865e-03
+# SNP7    -2.399910e-03  7.530565e-04
+# SNP8    -1.142958e-03  2.054155e-03
+```
+
+```{r}
+CI_corrected<-correct.spls(ci.f)# visualization original and corrected coefficients to zero
+
+head(CI_corrected[model_spls$A,])# table of corrected coefficients for SNPs and seed.volume
+```
+
+
+### Step 6 final comments :
+For this step we have considered reduced sets from those obtained at STEP 3. The reason was that the cross validation process in R was not performing due to an error. 
+The selection of the SNPs considered at each case was:
+**Case 1- all traits**: The reduced set was obtainet from the intersection of the SNPs which were associated with all thre traits.
+**Case 2- Seed.length**: the same set as the one obtained at step 3 was used.
+**Case 3 (seed.width) and Case 4 (Seed.volume)**: The reduced set of SNPs was obtained based on a threshold of adj_pvalue <= 1e-20.
+
+Overall, compared with the results from Step 5 we got a higher number of SNPs associated with the traits but the ratio among the number of SNPs associated and those considered was around the same logic. Such as: for seed.length a lower number among considered was found in both STEP 5 and STEP 6. And for seed.width and seed.volume this ratio was higher in both steps (5 and 6).
+
+**The approach used in STEP 5 was more strict, removing a significant number of SNPs from the consideration.**
+
+##Appendix
+The Rmarkdown code for this project may be found here:
+
+
+
+
+
+Reference: 
+<http://mixomics.org/case-studies/spls-liver-toxicity-case-study/>
+<https://www.bioconductor.org/packages/devel/bioc/vignettes/mixOmics/inst/doc/vignette.html#principle-of-pls>
